@@ -6,6 +6,8 @@ const { v4: uuidv4 } = require('uuid');
 const { authenticateToken, SECRET_KEY } = require('./middleware/auth');
 const profilRoutes = require('./routes/profil.routes');
 const entrainementRoutes = require('./routes/entrainement.routes');
+const nutritionRoutes = require('./routes/nutrition.routes');
+const glossaireRoutes = require('./routes/glossaire.routes');
 
 
 const app = express();
@@ -18,6 +20,12 @@ app.use(profilRoutes);
 
 // Module 2 — Journal d'entraînement (séances, exercices, indicateurs athlétiques, vue anatomique)
 app.use(entrainementRoutes);
+
+// Module 3 — Nutrition + E-book (journal, recommandations, chapitres, progression)
+app.use(nutritionRoutes);
+
+// Module 4 — Glossaire (termes, recherche, fiches, liens croisés)
+app.use(glossaireRoutes);
 
 // Route pour récupérer tous les utilisateurs (protégée)
 app.get('/utilisateurs', authenticateToken, async (req, res) => {

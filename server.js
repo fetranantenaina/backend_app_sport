@@ -1,13 +1,16 @@
+const http = require('http');
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const bdd = require('./objets/bdd');
 const pool = require('./config/db');
 const { v4: uuidv4 } = require('uuid');
-const { authenticateToken, SECRET_KEY } = require('./middleware/auth');
+const { authenticateToken, autoriserRoles, SECRET_KEY } = require('./middleware/auth');
 const profilRoutes = require('./routes/profil.routes');
 const entrainementRoutes = require('./routes/entrainement.routes');
 const nutritionRoutes = require('./routes/nutrition.routes');
 const glossaireRoutes = require('./routes/glossaire.routes');
+const chatRoutes = require('./routes/chat.routes');
+const { initialiserSocket } = require('./socket/chat.socket');
 
 
 const app = express();
@@ -27,8 +30,11 @@ app.use(nutritionRoutes);
 // Module 4 — Glossaire (termes, recherche, fiches, liens croisés)
 app.use(glossaireRoutes);
 
+// Module 5 — Chat Utilisateur <-> Coach/Support (REST ; le temps réel passe par Socket.io plus bas)
+app.use(chatRoutes);
+
 // Route pour récupérer tous les utilisateurs (protégée)
-app.get('/utilisateurs', authenticateToken, async (req, res) => {
+app.get('/utilisateurs', authenticateToken, autoriserRoles('admin'), async (req, res) => {
   try {
     const utilisateurs = await bdd.getAllUtilisateurs();
     res.json(utilisateurs);
@@ -40,6 +46,7 @@ app.get('/utilisateurs', authenticateToken, async (req, res) => {
 
 // Route pour récupérer un utilisateur par ID (protégée)
 app.get('/utilisateur/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin' && String(req.user.id) !== req.params.id) return res.status(403).send('Accès non autorisé');
   try {
     const utilisateur = await bdd.getUtilisateurById(req.params.id);
     if (!utilisateur) {
@@ -53,8 +60,10 @@ app.get('/utilisateur/:id', authenticateToken, async (req, res) => {
 });
 
 // Route register
-app.post('/register', async (req, res) => {
-  const { role, name, mdp, email } = req.body;
+app.post('/register', authenticateToken, autoriserRoles('admin'), async (req, res) => {
+  const { name, mdp, email } = req.body;
+  const role = 'user'; // le rôle n'est jamais choisi par le client (admin/coach créés en base)
+  if (!name || !mdp || !email) return res.status(400).send('name, mdp et email sont requis');
   try {
     const newUser = await bdd.registerUtilisateur(role, name, mdp, email);
     res.json(newUser);
@@ -97,6 +106,8 @@ app.post('/logout', async (req, res) => {
 
   try {
     await pool.query('INSERT INTO tokens_blacklist (token) VALUES ($1)', [token]);
+    // Coupe les connexions WebSocket ouvertes avec ce token
+    io.sockets.sockets.forEach((sock) => { if (sock.token === token) sock.disconnect(true); });
     res.json({ message: 'Déconnecté avec succès, token invalidé' });
     console.log('Token invalidé:', token);
   } catch (err) {
@@ -105,6 +116,11 @@ app.post('/logout', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
+// Serveur HTTP partagé entre Express et Socket.io (module 5)
+const httpServer = http.createServer(app);
+const io = initialiserSocket(httpServer);
+app.set('io', io);
+
+httpServer.listen(port, () => {
   console.log(`Serveur démarré sur http://localhost:${port}`);
 });

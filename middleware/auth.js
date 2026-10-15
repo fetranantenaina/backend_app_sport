@@ -31,4 +31,14 @@ async function authenticateToken(req, res, next) {
   }
 }
 
-module.exports = { authenticateToken, SECRET_KEY };
+// Middleware : restreint l'accès aux rôles autorisés (à utiliser après authenticateToken)
+function autoriserRoles(...rolesAutorises) {
+  return (req, res, next) => {
+    if (!req.user || !rolesAutorises.includes(req.user.role)) {
+      return res.status(403).send('Accès non autorisé');
+    }
+    next();
+  };
+}
+
+module.exports = { authenticateToken, autoriserRoles, SECRET_KEY };

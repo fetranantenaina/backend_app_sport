@@ -258,28 +258,20 @@ async function creerChapitre({ titre, ordre, contenu, image_url }) {
   return result.rows[0];
 }
 
-// Import en lot du contenu déjà rédigé (transaction : tout ou rien)
+// Import en lot du contenu déjà rédigé : un seul INSERT multi-lignes, donc tout ou rien
 async function importerChapitres(chapitres) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const crees = [];
-    for (const c of chapitres) {
-      const r = await client.query(
-        `INSERT INTO ebook_chapitres (titre, ordre, contenu, image_url)
-         VALUES ($1, $2, $3, $4) RETURNING id, titre, ordre`,
-        [c.titre, c.ordre, c.contenu, c.image_url ?? null]
-      );
-      crees.push(r.rows[0]);
-    }
-    await client.query('COMMIT');
-    return crees;
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  const params = [];
+  const lignes = chapitres.map((c, i) => {
+    params.push(c.titre, c.ordre, c.contenu, c.image_url ?? null);
+    const k = i * 4;
+    return `($${k + 1}, $${k + 2}, $${k + 3}, $${k + 4})`;
+  });
+  const result = await pool.query(
+    `INSERT INTO ebook_chapitres (titre, ordre, contenu, image_url)
+     VALUES ${lignes.join(', ')} RETURNING id, titre, ordre`,
+    params
+  );
+  return result.rows;
 }
 
 async function updateChapitre(id, { titre, ordre, contenu, image_url }) {

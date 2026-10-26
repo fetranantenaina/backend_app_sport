@@ -140,21 +140,45 @@ async function supprimerSeance(seanceId, utilisateurId) {
 // (paramètres d'exécution + case à cocher fait / non fait)
 // ---------------------------------------------------------
 
-async function ajouterExerciceASeance(seanceId, {
-  exercice_id, niveau, poids_kg, vitesse, repetitions,
-  duree_secondes, series, repos_secondes, ordre, fait,
-}) {
+// --- Analyse des saisies libres du journal (comme dans le fichier client) ---
+// Charge : "4kg", "Lvl 2", "OB 20kg + 5kg" (somme des kg), "speed 5/ incline 10%", "medium band"...
+function analyserCharge(raw) {
+  if (!raw) return {};
+  const kg = [...String(raw).matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi)].map((m) => parseFloat(m[1].replace(',', '.')));
+  const lvl = String(raw).match(/lvl\s*(\d+)/i);
+  const sp = String(raw).match(/speed\s*(\d+(?:[.,]\d+)?)/i);
+  return {
+    poids_kg: kg.length ? kg.reduce((a, b) => a + b, 0) : null,
+    niveau: lvl ? `Lvl ${lvl[1]}` : null,
+    vitesse: sp ? parseFloat(sp[1].replace(',', '.')) : null,
+  };
+}
+// Répétitions ou temps : "15" -> 15 répétitions, "20sec" -> 20 s, "15mn" -> 900 s
+function analyserRepTemps(raw) {
+  if (raw === undefined || raw === null || raw === '') return {};
+  const s = String(raw).trim();
+  let m;
+  if ((m = s.match(/^(\d+)\s*(?:sec|s)$/i))) return { duree_secondes: +m[1] };
+  if ((m = s.match(/^(\d+)\s*(?:mn|min)$/i))) return { duree_secondes: +m[1] * 60 };
+  if (/^\d+$/.test(s)) return { repetitions: +s };
+  return {};
+}
+const val = (x, repli) => (x !== undefined && x !== null && x !== '' ? x : repli ?? null);
+
+async function ajouterExerciceASeance(seanceId, d) {
+  const ch = analyserCharge(d.charge);
+  const rt = analyserRepTemps(d.rep_temps);
   const result = await pool.query(
     `INSERT INTO seance_exercices (
-       seance_id, exercice_id, niveau, poids_kg, vitesse, repetitions,
-       duree_secondes, series, repos_secondes, ordre, fait
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, FALSE))
+       seance_id, exercice_id, niveau, poids_kg, vitesse, repetitions, duree_secondes, series, repos_secondes,
+       ordre, fait, cibles, methode, charge, rep_temps, infos
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+       COALESCE($10, (SELECT COALESCE(MAX(ordre), 0) + 1 FROM seance_exercices WHERE seance_id = $1)),
+       COALESCE($11, FALSE), $12, $13, $14, $15, $16)
      RETURNING *`,
-    [
-      seanceId, exercice_id, niveau || null, poids_kg || null, vitesse || null,
-      repetitions || null, duree_secondes || null, series || null,
-      repos_secondes || null, ordre || null, fait,
-    ]
+    [seanceId, d.exercice_id, val(d.niveau, ch.niveau), val(d.poids_kg, ch.poids_kg), val(d.vitesse, ch.vitesse),
+     val(d.repetitions, rt.repetitions), val(d.duree_secondes, rt.duree_secondes), val(d.series), val(d.repos_secondes),
+     val(d.ordre), d.fait ?? null, val(d.cibles), val(d.methode), val(d.charge), val(d.rep_temps), val(d.infos)]
   );
   return result.rows[0];
 }
@@ -170,34 +194,24 @@ async function getSeanceExerciceForUtilisateur(seanceExerciceId, utilisateurId) 
   return result.rows[0] || null;
 }
 
-async function updateSeanceExercice(seanceExerciceId, utilisateurId, champs) {
+async function updateSeanceExercice(seanceExerciceId, utilisateurId, d) {
   const existant = await getSeanceExerciceForUtilisateur(seanceExerciceId, utilisateurId);
   if (!existant) return null;
-
-  const {
-    niveau, poids_kg, vitesse, repetitions,
-    duree_secondes, series, repos_secondes, ordre, fait,
-  } = champs;
+  const ch = analyserCharge(d.charge);
+  const rt = analyserRepTemps(d.rep_temps);
 
   const result = await pool.query(
     `UPDATE seance_exercices SET
-       niveau = COALESCE($2, niveau),
-       poids_kg = COALESCE($3, poids_kg),
-       vitesse = COALESCE($4, vitesse),
-       repetitions = COALESCE($5, repetitions),
-       duree_secondes = COALESCE($6, duree_secondes),
-       series = COALESCE($7, series),
-       repos_secondes = COALESCE($8, repos_secondes),
-       ordre = COALESCE($9, ordre),
-       fait = COALESCE($10, fait)
+       niveau = COALESCE($2, niveau), poids_kg = COALESCE($3, poids_kg), vitesse = COALESCE($4, vitesse),
+       repetitions = COALESCE($5, repetitions), duree_secondes = COALESCE($6, duree_secondes),
+       series = COALESCE($7, series), repos_secondes = COALESCE($8, repos_secondes), ordre = COALESCE($9, ordre),
+       fait = COALESCE($10, fait), cibles = COALESCE($11, cibles), methode = COALESCE($12, methode),
+       charge = COALESCE($13, charge), rep_temps = COALESCE($14, rep_temps), infos = COALESCE($15, infos)
      WHERE id = $1
      RETURNING *`,
-    [
-      seanceExerciceId, niveau || null, poids_kg || null, vitesse || null,
-      repetitions || null, duree_secondes || null, series || null,
-      repos_secondes || null, ordre || null,
-      fait === undefined ? null : fait,
-    ]
+    [seanceExerciceId, val(d.niveau, ch.niveau), val(d.poids_kg, ch.poids_kg), val(d.vitesse, ch.vitesse),
+     val(d.repetitions, rt.repetitions), val(d.duree_secondes, rt.duree_secondes), val(d.series), val(d.repos_secondes),
+     val(d.ordre), d.fait === undefined ? null : d.fait, val(d.cibles), val(d.methode), val(d.charge), val(d.rep_temps), val(d.infos)]
   );
   return result.rows[0];
 }
@@ -282,37 +296,32 @@ async function getHistogrammeAthletique(utilisateurId, { from, to } = {}) {
 // (nombre de séances, nombre de séries, volume total poids × répétitions × séries,
 // et date de dernière sollicitation) sur une période optionnelle.
 async function getVueAnatomique(utilisateurId, { from, to } = {}) {
-  const conditions = ['s.utilisateur_id = $1'];
+  const conditions = ['s.utilisateur_id = $1', 'se.fait = TRUE'];
   const params = [utilisateurId];
+  if (from) { params.push(from); conditions.push(`s.date_seance >= $${params.length}`); }
+  if (to) { params.push(to); conditions.push(`s.date_seance <= $${params.length}`); }
 
-  if (from) {
-    params.push(from);
-    conditions.push(`s.date_seance >= $${params.length}`);
-  }
-  if (to) {
-    params.push(to);
-    conditions.push(`s.date_seance <= $${params.length}`);
-  }
-
+  // Les muscles ciblés sont saisis en liste ("ADDUCTOR, GLUTES") : on les sépare pour compter chaque muscle.
+  // Seuls les exercices cochés "fait" comptent ; récupération / échauffement ne sont pas des muscles.
   const result = await pool.query(
     `SELECT
-       e.groupe_musculaire,
+       TRIM(m.groupe) AS groupe_musculaire,
        COUNT(DISTINCT s.id) AS nb_seances,
        COUNT(se.id) AS nb_exercices,
        COALESCE(SUM(se.series), 0) AS nb_series_total,
-       COALESCE(SUM(
-         COALESCE(se.poids_kg, 0) * COALESCE(se.repetitions, 0) * COALESCE(se.series, 1)
-       ), 0) AS volume_total,
+       COALESCE(SUM(COALESCE(se.poids_kg, 0) * COALESCE(se.repetitions, 0) * COALESCE(se.series, 1)), 0) AS volume_total,
        MAX(s.date_seance) AS derniere_sollicitation
      FROM seance_exercices se
      JOIN seances s ON s.id = se.seance_id
      JOIN exercices e ON e.id = se.exercice_id
+     CROSS JOIN LATERAL unnest(string_to_array(COALESCE(NULLIF(se.cibles, ''), e.groupe_musculaire), ',')) AS m(groupe)
      WHERE ${conditions.join(' AND ')}
-     GROUP BY e.groupe_musculaire
-     ORDER BY volume_total DESC`,
+       AND TRIM(m.groupe) <> ''
+       AND UPPER(TRIM(m.groupe)) NOT IN ('RECOVERY', 'RELAXING', 'WARM-UP')
+     GROUP BY TRIM(m.groupe)
+     ORDER BY nb_series_total DESC, volume_total DESC`,
     params
   );
-
   return result.rows;
 }
 

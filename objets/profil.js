@@ -49,19 +49,20 @@ async function getProfilByUtilisateur(utilisateurId) {
 }
 
 // Crée le profil s'il n'existe pas encore, ou le met à jour sinon (upsert)
-async function upsertProfil(utilisateurId, { sexe, date_naissance, pal, statut_sante }) {
+async function upsertProfil(utilisateurId, { sexe, date_naissance, pal, objectif, statut_sante }) {
   const result = await pool.query(
-    `INSERT INTO profils (utilisateur_id, sexe, date_naissance, pal, statut_sante)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO profils (utilisateur_id, sexe, date_naissance, pal, objectif, statut_sante)
+     VALUES ($1, $2, $3, $4, $5, $6)
      ON CONFLICT (utilisateur_id)
      DO UPDATE SET
        sexe = COALESCE(EXCLUDED.sexe, profils.sexe),
        date_naissance = COALESCE(EXCLUDED.date_naissance, profils.date_naissance),
        pal = COALESCE(EXCLUDED.pal, profils.pal),
+       objectif = COALESCE(EXCLUDED.objectif, profils.objectif),
        statut_sante = COALESCE(EXCLUDED.statut_sante, profils.statut_sante),
        updated_at = CURRENT_TIMESTAMP
      RETURNING *`,
-    [utilisateurId, sexe || null, date_naissance || null, pal || null, statut_sante || null]
+    [utilisateurId, sexe || null, date_naissance || null, pal || null, objectif || null, statut_sante || null]
   );
   return result.rows[0];
 }
@@ -175,58 +176,29 @@ function estimerTauxGraisse({ sexe, taille_cm, cou_cm, taille_tour_cm, fessiers_
 // automatiquement s'ils ne sont pas fournis explicitement.
 async function ajouterReleve(utilisateurId, releve) {
   const {
-    date_releve,
-    poids_kg,
-    taille_cm,
-    taux_graisse,
-    cou_cm,
-    poitrine_cm,
-    taille_tour_cm,
-    bras_cm,
-    fessiers_cm,
-    cuisses_cm,
-    mollets_cm,
+    date_releve, poids_kg, taille_cm, taux_graisse, cou_cm, poitrine_cm, taille_tour_cm,
+    bras_gauche_cm, bras_droit_cm, fessiers_cm, cuisses_cm, mollet_gauche_cm, mollet_droit_cm,
   } = releve;
 
   // IMC auto-calculé si poids + taille disponibles et pas déjà fourni
-  const imc = releve.imc !== undefined && releve.imc !== null
-    ? releve.imc
-    : calculerIMC(poids_kg, taille_cm);
+  const imc = releve.imc !== undefined && releve.imc !== null ? releve.imc : calculerIMC(poids_kg, taille_cm);
 
   // Taux de masse grasse : valeur saisie sinon estimation automatique
   let tauxGraisseFinal = taux_graisse;
   if (tauxGraisseFinal === undefined || tauxGraisseFinal === null) {
     const profil = await getProfilByUtilisateur(utilisateurId);
-    tauxGraisseFinal = estimerTauxGraisse({
-      sexe: profil ? profil.sexe : null,
-      taille_cm,
-      cou_cm,
-      taille_tour_cm,
-      fessiers_cm,
-    });
+    tauxGraisseFinal = estimerTauxGraisse({ sexe: profil ? profil.sexe : null, taille_cm, cou_cm, taille_tour_cm, fessiers_cm });
   }
 
   const result = await pool.query(
     `INSERT INTO releves_physiques (
-       utilisateur_id, date_releve, poids_kg, taille_cm, imc, taux_graisse,
-       cou_cm, poitrine_cm, taille_tour_cm, bras_cm, fessiers_cm, cuisses_cm, mollets_cm
-     ) VALUES ($1, COALESCE($2, CURRENT_DATE), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       utilisateur_id, date_releve, poids_kg, taille_cm, imc, taux_graisse, cou_cm, poitrine_cm, taille_tour_cm,
+       bras_gauche_cm, bras_droit_cm, fessiers_cm, cuisses_cm, mollet_gauche_cm, mollet_droit_cm
+     ) VALUES ($1, COALESCE($2, CURRENT_DATE), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
      RETURNING *`,
-    [
-      utilisateurId,
-      date_releve || null,
-      poids_kg || null,
-      taille_cm || null,
-      imc,
-      tauxGraisseFinal,
-      cou_cm || null,
-      poitrine_cm || null,
-      taille_tour_cm || null,
-      bras_cm || null,
-      fessiers_cm || null,
-      cuisses_cm || null,
-      mollets_cm || null,
-    ]
+    [utilisateurId, date_releve || null, poids_kg || null, taille_cm || null, imc, tauxGraisseFinal, cou_cm || null,
+     poitrine_cm || null, taille_tour_cm || null, bras_gauche_cm || null, bras_droit_cm || null, fessiers_cm || null,
+     cuisses_cm || null, mollet_gauche_cm || null, mollet_droit_cm || null]
   );
 
   const nouveauReleve = result.rows[0];
@@ -284,10 +256,12 @@ async function getHistogrammeEvolution(utilisateurId, { from, to } = {}) {
     cou_cm: chronologique.map((r) => r.cou_cm),
     poitrine_cm: chronologique.map((r) => r.poitrine_cm),
     taille_tour_cm: chronologique.map((r) => r.taille_tour_cm),
-    bras_cm: chronologique.map((r) => r.bras_cm),
+    bras_gauche_cm: chronologique.map((r) => r.bras_gauche_cm),
+    bras_droit_cm: chronologique.map((r) => r.bras_droit_cm),
     fessiers_cm: chronologique.map((r) => r.fessiers_cm),
     cuisses_cm: chronologique.map((r) => r.cuisses_cm),
-    mollets_cm: chronologique.map((r) => r.mollets_cm),
+    mollet_gauche_cm: chronologique.map((r) => r.mollet_gauche_cm),
+    mollet_droit_cm: chronologique.map((r) => r.mollet_droit_cm),
   };
 }
 

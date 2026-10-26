@@ -28,7 +28,7 @@ router.get('/profil', authenticateToken, async (req, res) => {
 // POST /profil -> crée ou met à jour le profil de l'utilisateur connecté
 // Body attendu : { sexe, date_naissance, pal, statut_sante }
 router.post('/profil', authenticateToken, async (req, res) => {
-  const { sexe, date_naissance, pal, statut_sante } = req.body;
+  const { sexe, date_naissance, pal, objectif, statut_sante } = req.body;
 
   if (sexe && !['homme', 'femme', 'autre'].includes(sexe)) {
     return res.status(400).send('Sexe invalide (valeurs acceptées : homme, femme, autre)');
@@ -39,6 +39,7 @@ router.post('/profil', authenticateToken, async (req, res) => {
       sexe,
       date_naissance,
       pal,
+      objectif,
       statut_sante,
     });
     res.json({

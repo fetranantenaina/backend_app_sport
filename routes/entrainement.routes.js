@@ -31,17 +31,6 @@ router.get('/exercices', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /exercices/catalogue -> exercices + muscles et méthodes réellement utilisés (recherche croisée)
-// (déclaré avant /exercices/:id pour ne pas être pris pour un identifiant)
-router.get('/exercices/catalogue', authenticateToken, async (req, res) => {
-  try {
-    res.json(await entrainementService.getCatalogueExercices());
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Erreur serveur');
-  }
-});
-
 // GET /exercices/:id -> détail d'un exercice
 router.get('/exercices/:id', authenticateToken, async (req, res) => {
   try {

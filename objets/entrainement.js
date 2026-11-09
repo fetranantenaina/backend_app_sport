@@ -35,6 +35,22 @@ async function getExercices({ groupe_musculaire, methode } = {}) {
   return result.rows;
 }
 
+// Catalogue pour la recherche croisée (nom <-> groupes musculaires <-> méthodes) :
+// pour chaque exercice, les muscles et méthodes réellement utilisés dans les séances (tous clients confondus).
+async function getCatalogueExercices() {
+  const result = await pool.query(
+    `SELECT e.id, e.nom, e.groupe_musculaire, e.methode,
+       COALESCE((SELECT array_agg(DISTINCT TRIM(g)) FROM seance_exercices se
+                 CROSS JOIN LATERAL unnest(string_to_array(se.cibles, ',')) AS g
+                 WHERE se.exercice_id = e.id AND TRIM(g) <> ''), '{}') AS groupes_utilises,
+       COALESCE((SELECT array_agg(DISTINCT se.methode) FROM seance_exercices se
+                 WHERE se.exercice_id = e.id AND se.methode IS NOT NULL AND se.methode <> ''), '{}') AS methodes_utilisees
+     FROM exercices e
+     ORDER BY e.nom`
+  );
+  return result.rows;
+}
+
 async function getExerciceById(id) {
   const result = await pool.query('SELECT * FROM exercices WHERE id = $1', [id]);
   return result.rows[0] || null;
@@ -328,6 +344,7 @@ async function getVueAnatomique(utilisateurId, { from, to } = {}) {
 module.exports = {
   // Référentiel exercices
   getExercices,
+  getCatalogueExercices,
   getExerciceById,
   creerExercice,
   // Séances

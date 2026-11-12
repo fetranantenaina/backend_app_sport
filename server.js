@@ -8,6 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 const { authenticateToken, autoriserRoles, SECRET_KEY } = require('./middleware/auth');
 const profilRoutes = require('./routes/profil.routes');
 const entrainementRoutes = require('./routes/entrainement.routes');
+const anatomieRoutes = require('./routes/anatomie.routes');
 const nutritionRoutes = require('./routes/nutrition.routes');
 const glossaireRoutes = require('./routes/glossaire.routes');
 const alimentsRoutes = require('./routes/aliments.routes');
@@ -34,6 +35,7 @@ api.use(profilRoutes);
 
 // Module 2 — Journal d'entraînement (séances, exercices, indicateurs athlétiques, vue anatomique)
 api.use(entrainementRoutes);
+api.use(anatomieRoutes); // vue anatomique 3D + référentiel des muscles
 
 // Module 3 — Nutrition + E-book (journal, recommandations, chapitres, progression)
 api.use(nutritionRoutes);

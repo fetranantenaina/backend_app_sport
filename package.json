@@ -10,7 +10,9 @@
     "uuid": "^14.0.2"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "migrer": "node db/migrer.js",
+    "test": "node --test tests/*.test.js"
   },
   "engines": {
     "node": ">=20"

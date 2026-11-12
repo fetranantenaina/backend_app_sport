@@ -162,6 +162,11 @@ httpServer.listen(port, () => {
   console.log(`Serveur démarré sur le port ${port} : http://localhost:${port}`);
 });
 
+// Applique les migrations manquantes (db/migrations, idempotentes) : la base déployée reste à jour sans étape manuelle
+require('./db/migrer').migrer({ silencieux: true })
+  .then((faites) => { if (faites.length) console.log(`Migrations appliquées : ${faites.join(', ')}`); })
+  .catch((err) => console.error(`⚠️  Migration impossible : ${err.message}`));
+
 // Vérifie la connexion à la base au démarrage (ne bloque pas le serveur)
 pool.query('SELECT current_database() AS base, (SELECT COUNT(*) FROM utilisateurs) AS comptes')
   .then((r) => console.log(`Base de données connectée : ${r.rows[0].base} (${r.rows[0].comptes} comptes)`))

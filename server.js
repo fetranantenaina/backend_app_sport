@@ -30,6 +30,10 @@ app.use(express.json());
 // Toute l'API vit sous /api (le front Angular appelle /api/...)
 const api = express.Router();
 
+// Santé : le front l'interroge au lancement pour savoir si le serveur est réveillé (hébergement gratuit qui s'endort).
+// Ne touche pas la base : répond dès que le serveur écoute.
+api.get('/sante', (req, res) => res.set('Cache-Control', 'no-store').json({ statut: 'ok' }));
+
 // Module 1 — Informations personnelles (profil, mensurations, IMC, PAL...)
 api.use(profilRoutes);
 

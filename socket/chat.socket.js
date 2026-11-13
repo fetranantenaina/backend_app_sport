@@ -21,6 +21,7 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const { SECRET_KEY } = require('../middleware/auth');
 const chatService = require('../objets/chat');
+const { origines } = require('../config/cors');
 
 const MAX_LONGUEUR_MESSAGE = 2000;
 
@@ -39,7 +40,7 @@ function diffuserMessage(io, conversation, { message, destinataireId, notificati
 
 function initialiserSocket(httpServer) {
   const io = new Server(httpServer, {
-    cors: process.env.CORS_ORIGIN ? { origin: process.env.CORS_ORIGIN } : undefined, // même origine par défaut (front servi par ce serveur)
+    cors: origines.length ? { origin: origines } : undefined, // sinon : même origine uniquement
   });
 
   // Authentification de la connexion : JWT valide et non blacklisté

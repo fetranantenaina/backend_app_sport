@@ -14,9 +14,16 @@ const glossaireRoutes = require('./routes/glossaire.routes');
 const alimentsRoutes = require('./routes/aliments.routes');
 const chatRoutes = require('./routes/chat.routes');
 const { initialiserSocket } = require('./socket/chat.socket');
+const cors = require('cors');
+const { origines } = require('./config/cors');
 
 
 const app = express();
+
+// Autorise le site front (autre adresse) à appeler l'API, y compris la pré-vérification des en-têtes personnalisés
+if (origines.length) {
+  app.use(cors({ origin: origines, allowedHeaders: ['Content-Type', 'Authorization', 'X-Utilisateur-Id'], methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] }));
+}
 const port = process.env.PORT || 3000; // l'hébergeur impose le port via PORT
 
 // En production, une clé de signature des connexions est obligatoire

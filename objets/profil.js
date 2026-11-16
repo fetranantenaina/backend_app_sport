@@ -177,7 +177,7 @@ function estimerTauxGraisse({ sexe, taille_cm, cou_cm, taille_tour_cm, fessiers_
 async function ajouterReleve(utilisateurId, releve) {
   const {
     date_releve, poids_kg, taille_cm, taux_graisse, cou_cm, poitrine_cm, taille_tour_cm,
-    bras_gauche_cm, bras_droit_cm, fessiers_cm, cuisses_cm, mollet_gauche_cm, mollet_droit_cm,
+    bras_gauche_cm, bras_droit_cm, fessiers_cm, cuisse_gauche_cm, cuisse_droite_cm, mollet_gauche_cm, mollet_droit_cm,
   } = releve;
 
   // IMC auto-calculé si poids + taille disponibles et pas déjà fourni
@@ -193,12 +193,12 @@ async function ajouterReleve(utilisateurId, releve) {
   const result = await pool.query(
     `INSERT INTO releves_physiques (
        utilisateur_id, date_releve, poids_kg, taille_cm, imc, taux_graisse, cou_cm, poitrine_cm, taille_tour_cm,
-       bras_gauche_cm, bras_droit_cm, fessiers_cm, cuisses_cm, mollet_gauche_cm, mollet_droit_cm
-     ) VALUES ($1, COALESCE($2, CURRENT_DATE), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       bras_gauche_cm, bras_droit_cm, fessiers_cm, cuisse_gauche_cm, cuisse_droite_cm, mollet_gauche_cm, mollet_droit_cm
+     ) VALUES ($1, COALESCE($2, CURRENT_DATE), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
      RETURNING *`,
     [utilisateurId, date_releve || null, poids_kg || null, taille_cm || null, imc, tauxGraisseFinal, cou_cm || null,
      poitrine_cm || null, taille_tour_cm || null, bras_gauche_cm || null, bras_droit_cm || null, fessiers_cm || null,
-     cuisses_cm || null, mollet_gauche_cm || null, mollet_droit_cm || null]
+     cuisse_gauche_cm || null, cuisse_droite_cm || null, mollet_gauche_cm || null, mollet_droit_cm || null]
   );
 
   const nouveauReleve = result.rows[0];
@@ -259,7 +259,9 @@ async function getHistogrammeEvolution(utilisateurId, { from, to } = {}) {
     bras_gauche_cm: chronologique.map((r) => r.bras_gauche_cm),
     bras_droit_cm: chronologique.map((r) => r.bras_droit_cm),
     fessiers_cm: chronologique.map((r) => r.fessiers_cm),
-    cuisses_cm: chronologique.map((r) => r.cuisses_cm),
+    cuisse_gauche_cm: chronologique.map((r) => r.cuisse_gauche_cm),
+    cuisse_droite_cm: chronologique.map((r) => r.cuisse_droite_cm),
+    cuisses_cm: chronologique.map((r) => r.cuisses_cm), // anciens relevés (avant la séparation gauche / droite)
     mollet_gauche_cm: chronologique.map((r) => r.mollet_gauche_cm),
     mollet_droit_cm: chronologique.map((r) => r.mollet_droit_cm),
   };

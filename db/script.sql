@@ -76,7 +76,9 @@ CREATE TABLE releves_physiques (
     bras_gauche_cm NUMERIC(5,2),            -- L.arms du fichier client
     bras_droit_cm NUMERIC(5,2),
     fessiers_cm NUMERIC(5,2),
-    cuisses_cm NUMERIC(5,2),
+    cuisses_cm NUMERIC(5,2),                -- ancien champ unique (avant la séparation gauche / droite)
+    cuisse_gauche_cm NUMERIC(5,2),
+    cuisse_droite_cm NUMERIC(5,2),
     mollet_gauche_cm NUMERIC(5,2),          -- L.calf du fichier client
     mollet_droit_cm NUMERIC(5,2),           -- R.calf du fichier client
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -287,10 +289,10 @@ INSERT INTO profils (utilisateur_id, sexe, date_naissance, pal, objectif, statut
     (4, 'femme', '1995-06-15', 1.55, 'Tonification et renforcement musculaire', 'RAS (données de test)');
 
 -- Relevés physiques de client_x (fictifs) : alimentent l'histogramme d'évolution
-INSERT INTO releves_physiques (utilisateur_id, date_releve, poids_kg, taille_cm, imc, taux_graisse, cou_cm, poitrine_cm, taille_tour_cm, bras_gauche_cm, bras_droit_cm, fessiers_cm, cuisses_cm, mollet_gauche_cm, mollet_droit_cm) VALUES
-    (4, '2026-02-04', 68.0, 165, ROUND(68.0/(1.65*1.65), 2), 31.0, 32.0, 92.0, 76.0, 27.0, 27.5, 101.0, 58.0, 35.0, 35.5),
-    (4, '2026-05-10', 66.5, 165, ROUND(66.5/(1.65*1.65), 2), 29.5, 31.5, 91.0, 74.0, 27.5, 28.0, 100.0, 57.0, 35.0, 35.5),
-    (4, '2026-09-15', 65.0, 165, ROUND(65.0/(1.65*1.65), 2), 28.0, 31.5, 90.5, 72.5, 28.0, 28.5, 99.0, 56.0, 35.5, 36.0);
+INSERT INTO releves_physiques (utilisateur_id, date_releve, poids_kg, taille_cm, imc, taux_graisse, cou_cm, poitrine_cm, taille_tour_cm, bras_gauche_cm, bras_droit_cm, fessiers_cm, cuisse_gauche_cm, cuisse_droite_cm, mollet_gauche_cm, mollet_droit_cm) VALUES
+    (4, '2026-02-04', 68.0, 165, ROUND(68.0/(1.65*1.65), 2), 31.0, 32.0, 92.0, 76.0, 27.0, 27.5, 101.0, 58.0, 58.5, 35.0, 35.5),
+    (4, '2026-05-10', 66.5, 165, ROUND(66.5/(1.65*1.65), 2), 29.5, 31.5, 91.0, 74.0, 27.5, 28.0, 100.0, 57.0, 57.5, 35.0, 35.5),
+    (4, '2026-09-15', 65.0, 165, ROUND(65.0/(1.65*1.65), 2), 28.0, 31.5, 90.5, 72.5, 28.0, 28.5, 99.0, 56.0, 56.5, 35.5, 36.0);
 
 -- Indicateurs athlétiques de client_x (fictifs)
 INSERT INTO indicateurs_athletiques (utilisateur_id, date_mesure, force, endurance, resistance, puissance) VALUES

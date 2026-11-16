@@ -77,7 +77,7 @@ router.get('/profil/:utilisateurId', authenticateToken, async (req, res) => {
 
 // POST /releves -> ajoute un nouveau relevé physique (IMC et % masse grasse auto-calculés)
 // Body attendu : { date_releve?, poids_kg, taille_cm, taux_graisse?,
-//                   cou_cm?, poitrine_cm?, taille_tour_cm?, bras_cm?, fessiers_cm?, cuisses_cm?, mollets_cm? }
+//                   cou_cm?, poitrine_cm?, taille_tour_cm?, bras_cm?, fessiers_cm?, cuisse_gauche_cm?, cuisse_droite_cm?, mollet_gauche_cm?, mollet_droit_cm? }
 router.post('/releves', authenticateToken, async (req, res) => {
   try {
     const releve = await profilService.ajouterReleve(req.user.id, req.body);

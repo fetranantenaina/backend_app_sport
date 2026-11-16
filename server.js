@@ -84,6 +84,27 @@ api.get('/utilisateur/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Route admin : récupération d'un compte (identifiant, email) et réinitialisation du mot de passe.
+// Body : { name?, email?, mdp? } (seuls les champs fournis sont modifiés)
+api.put('/utilisateur/:id', authenticateToken, autoriserRoles('admin'), async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).send('Identifiant invalide');
+  const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+  const email = typeof req.body.email === 'string' ? req.body.email.trim() : '';
+  const mdp = typeof req.body.mdp === 'string' ? req.body.mdp : '';
+  if (mdp && mdp.length < 4) return res.status(400).send('Le mot de passe doit contenir au moins 4 caractères');
+  if (name.length > 50 || email.length > 50) return res.status(400).send('Nom ou email trop long (50 caractères max.)');
+  try {
+    const u = await bdd.modifierUtilisateur(id, { name, email, mdp });
+    if (!u) return res.status(404).send('Utilisateur non trouvé');
+    res.json(u);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).send('Cet email est déjà utilisé par un autre compte');
+    console.error(err);
+    res.status(500).send('Erreur lors de la modification du compte');
+  }
+});
+
 // Route register
 api.post('/register', authenticateToken, autoriserRoles('admin'), async (req, res) => {
   const { name, mdp, email } = req.body;

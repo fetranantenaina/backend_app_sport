@@ -3,7 +3,7 @@ const pool = require('../config/db');
 
 // Récupérer tous les utilisateurs
 async function getAllUtilisateurs() {
-  const result = await pool.query('SELECT id, role, name, email, created_at FROM utilisateurs ORDER BY name');
+  const result = await pool.query('SELECT id, role, name, email, created_at, updated_at FROM utilisateurs ORDER BY name');
   return result.rows;
 }
 
@@ -41,7 +41,25 @@ async function loginUtilisateur(name, mdp) {
   return user;
 }
 
+// Modification d'un compte par l'administrateur (nom, email, nouveau mot de passe). Champs absents = inchangés.
+async function modifierUtilisateur(id, { name, email, mdp }) {
+  const champs = [];
+  const valeurs = [];
+  if (name) { valeurs.push(name); champs.push(`name = $${valeurs.length}`); }
+  if (email) { valeurs.push(email); champs.push(`email = $${valeurs.length}`); }
+  if (mdp) { valeurs.push(await bcrypt.hash(mdp, 10)); champs.push(`mdp = $${valeurs.length}`); }
+  if (!champs.length) return getUtilisateurById(id);
+  valeurs.push(id);
+  const result = await pool.query(
+    `UPDATE utilisateurs SET ${champs.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${valeurs.length}
+     RETURNING id, role, name, email, created_at`,
+    valeurs
+  );
+  return result.rows[0];
+}
+
 module.exports = {
+  modifierUtilisateur,
   getAllUtilisateurs,
   getUtilisateurById,
   registerUtilisateur,

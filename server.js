@@ -105,6 +105,24 @@ api.put('/utilisateur/:id', authenticateToken, autoriserRoles('admin'), async (r
   }
 });
 
+// Route admin : suppression définitive d'un compte et de toutes ses données.
+// Interdit sur son propre compte et sur un compte administrateur.
+api.delete('/utilisateur/:id', authenticateToken, autoriserRoles('admin'), async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).send('Identifiant invalide');
+  if (id === (req.user.adminId ?? req.user.id)) return res.status(400).send('Impossible de supprimer votre propre compte');
+  try {
+    const cible = await bdd.getUtilisateurById(id);
+    if (!cible) return res.status(404).send('Utilisateur non trouvé');
+    if (cible.role === 'admin') return res.status(403).send('Un compte administrateur ne peut pas être supprimé');
+    const u = await bdd.supprimerUtilisateur(id);
+    res.json(u);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Erreur lors de la suppression du compte');
+  }
+});
+
 // Route register
 api.post('/register', authenticateToken, autoriserRoles('admin'), async (req, res) => {
   const { name, mdp, email } = req.body;

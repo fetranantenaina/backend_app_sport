@@ -58,8 +58,22 @@ async function modifierUtilisateur(id, { name, email, mdp }) {
   return result.rows[0];
 }
 
+// Suppression définitive d'un compte par l'administrateur.
+// Profil, relevés, séances, nutrition, e-book, conversations et notifications partent en cascade (ON DELETE CASCADE).
+// Les messages envoyés n'ont pas de cascade sur expediteur_id : on les supprime dans la même requête
+// (une seule instruction SQL = atomique, y compris en mode Neon HTTP qui n'a pas de transaction multi-requêtes).
+async function supprimerUtilisateur(id) {
+  const result = await pool.query(
+    `WITH msg AS (DELETE FROM messages WHERE expediteur_id = $1)
+     DELETE FROM utilisateurs WHERE id = $1 RETURNING id, role, name, email`,
+    [id]
+  );
+  return result.rows[0];
+}
+
 module.exports = {
   modifierUtilisateur,
+  supprimerUtilisateur,
   getAllUtilisateurs,
   getUtilisateurById,
   registerUtilisateur,
